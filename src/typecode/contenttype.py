@@ -30,6 +30,8 @@ import io
 import os
 import fnmatch
 import mimetypes as mimetype_python
+import yaml
+import sys
 
 import attr
 from binaryornot.helpers import get_starting_chunk
@@ -118,6 +120,10 @@ elf_types = (ELF_EXE, ELF_SHARED, ELF_RELOC,)
 # FIXME: can this be a memroy hog for very large scans?
 _registry = {}
 
+extension_file_location = os.path.join(data_dir, "extensions.yml")
+
+with open(extension_file_location, 'r') as stream:
+    extensions = yaml.safe_load(stream)
 
 def get_type(location):
     """
@@ -160,6 +166,7 @@ class Type(object):
         '_filetype_file',
         '_mimetype_file',
         '_filetype_pygments',
+        '_language_extension',
         '_is_pdf_with_text',
         '_is_text',
         '_is_text_with_long_lines',
@@ -199,6 +206,7 @@ class Type(object):
         self._filetype_file = None
         self._mimetype_file = None
         self._filetype_pygments = None
+        self._language_extension = None
         self._is_pdf_with_text = None
         self._is_text = None
         self._is_text_with_long_lines = None
@@ -289,6 +297,19 @@ class Type(object):
         return self._filetype_pygments
 
     # FIXME: we way we use tri booleans is a tad ugly
+
+    @property
+    def language_extension(self):
+        """
+        Return programming language based on file extension.
+        """
+        if self._language_extension is None:
+            if self.is_text and not self.is_media:
+                filename, file_extension = os.path.splitext(self.location)
+                language = extensions.get(file_extension, '')
+                if language and not file_extension.endswith('.json'):
+                    self._language_extension = language
+        return self._language_extension
 
     @property
     def is_binary(self):
@@ -653,6 +674,13 @@ class Type(object):
         string.
         """
         return self.filetype_pygment or ''
+
+    @property
+    def programming_language_from_ext(self):
+        """
+        Return the programming language based on file extension.
+        """
+        return self.language_extension
 
     @property
     def is_c_source(self):
